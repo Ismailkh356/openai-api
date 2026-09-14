@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: GPT-6 Astra API Service
+  version: 1.0.0
+  description: |
+    Production API relay for OpenAI's GPT-6 Astra model.
+
+    Clients call this service. This service calls OpenAI. The OpenAI API key
+    never leaves the server and is never returned in responses.
+
+    Designed to sit behind RapidAPI later:
+
+    Client → RapidAPI → this API → OpenAI Responses API → this API → Client
+  contact:
+    name: API Maintainer
+servers:
+  - url: http://localhost:3000
+    description: Local development
+tags:
+  - name: Health
+  - name: Chat
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      description: Returns process health. This endpoint does not call OpenAI.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+  /v1/chat:
+    post:
+      tags: [Chat]
+      summary: Create a GPT-6 Astra completion
+      description: |
+        Sends a user message to OpenAI's GPT-6 Astra model through the
+        Responses API and returns only the model text.
+      operationId: createChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            example:
+              message: Explain how DNS works
+              system: You are a helpful technical assistant
+              reasoning_effort: low
+      responses:
+        '200':
+          description: Completion created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              example:
+                success: true
+                model: gpt-6-astra
+                response: DNS translates human-readable names into IP addresses...
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: message is required
+        '413':
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Upstream rate limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error:
+                  code: OPENAI_RATE_LIMIT
+                  message: The model is currently rate limited. Please retry shortly.
+        '500':
+          description: Server or configuration failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Model provider failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 16000
+          description: User prompt sent to GPT-6 Astra.
+        system:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: Optional system instructions.
+        reasoning_effort:
+          type: string
+          enum: [low, medium, high, xhigh, max]
+          default: low
+          description: GPT-6 Astra reasoning effort. Defaults to low if omitted.
+    ChatResponse:
+      type: object
+      required: [success, model, response]
+      properties:
+        success:
+          type: boolean
+          example: true
+        model:
+          type: string
+          example: gpt-6-astra
+        response:
+          type: string
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: message is required

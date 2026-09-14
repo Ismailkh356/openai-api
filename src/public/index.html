@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPT-6 Astra API Service</title>
+    <meta
+      name="description"
+      content="Production API relay for OpenAI GPT-6 Astra. Clients never see the OpenAI key."
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0e14'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%237ec8e3' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%237ec8e3'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0e14;
+        --bg-elev: #121821;
+        --fg: #e7edf5;
+        --muted: #8b98a8;
+        --accent: #7ec8e3;
+        --accent-dim: rgba(126, 200, 227, 0.14);
+        --ok: #9dcca0;
+        --warn: #e2c98a;
+        --danger: #e3a0a0;
+        --line: rgba(255, 255, 255, 0.08);
+        --shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+        --radius: 18px;
+        --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      html {
+        -webkit-font-smoothing: antialiased;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+      }
+      body {
+        background:
+          radial-gradient(1200px 500px at 10% -10%, rgba(126, 200, 227, 0.08), transparent 50%),
+          var(--bg);
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      button, [role="button"] { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+      .wrap {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 72px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: var(--bg-elev);
+        box-shadow: var(--shadow);
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+
+      .mark svg { display: block; }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+
+      .brand p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .health {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: var(--bg-elev);
+        box-shadow: var(--shadow);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .health.ok .dot { background: var(--ok); }
+      .health.bad .dot { background: var(--danger); }
+
+      .hero {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 28px;
+        max-width: 720px;
+      }
+
+      .hero h2 {
+        margin: 0;
+        font-size: clamp(32px, 6vw, 52px);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        font-weight: 600;
+        text-wrap: balance;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.55;
+        max-width: 58ch;
+        text-wrap: pretty;
+      }
+
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 8px 0 0;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .chip {
+        background: var(--bg-elev);
+        box-shadow: var(--shadow);
+        border-radius: 999px;
+        padding: 8px 12px;
+      }
+
+      .chip.accent {
+        color: var(--accent);
+        background: var(--accent-dim);
+        box-shadow: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 16px;
+        align-items: start;
+      }
+
+      .card {
+        background: var(--bg-elev);
+        box-shadow: var(--shadow);
+        border-radius: var(--radius);
+        padding: 20px;
+      }
+
+      .card h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .card .lede {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      label {
+        display: block;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+
+      textarea, select, input {
+        width: 100%;
+        background: #0a0e14;
+        color: var(--fg);
+        border: 0;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font: 14px/1.45 var(--font);
+        outline: none;
+      }
+
+      textarea:focus, select:focus, input:focus {
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+
+      textarea { min-height: 120px; resize: vertical; }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 160px;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .btn {
+        min-height: 44px;
+        border: 0;
+        border-radius: 12px;
+        padding: 0 16px;
+        font: 600 14px var(--font);
+        background: var(--accent);
+        color: #0a0e14;
+      }
+
+      .btn.ghost {
+        background: transparent;
+        color: var(--fg);
+        box-shadow: var(--shadow);
+      }
+
+      pre {
+        margin: 0;
+        background: #0a0e14;
+        border-radius: 12px;
+        padding: 14px;
+        font: 12.5px/1.5 var(--mono);
+        overflow: auto;
+        min-height: 180px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #d5e3ee;
+      }
+
+      .note {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .spec {
+        margin-top: 16px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .endpoint {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #0a0e14;
+      }
+
+      .verb {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      .errors {
+        margin-top: 16px;
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      .errors th, .errors td {
+        text-align: left;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      .errors th { color: var(--muted); font-weight: 500; }
+      .code { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+
+      footer {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 820px) {
+        .grid, .row, header { grid-template-columns: 1fr; display: grid; }
+        header { align-items: stretch; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="brand">
+          <div class="mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="6.2" stroke="#7ec8e3" stroke-width="1.6"/>
+              <circle cx="10" cy="10" r="1.8" fill="#7ec8e3"/>
+              <path d="M10 2.2v2.2M10 15.6v2.2M2.2 10h2.2M15.6 10h2.2" stroke="#7ec8e3" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1>GPT-6 Astra API</h1>
+            <p>Server-side relay. The OpenAI key never leaves this service.</p>
+          </div>
+        </div>
+        <div class="health" id="health-pill"><span class="dot"></span> checking /health</div>
+      </header>
+
+      <section class="hero">
+        <h2>A RapidAPI-ready gateway to GPT-6 Astra.</h2>
+        <p>
+          Clients call this API. This API calls OpenAI. Completions come back as clean JSON.
+          Your OpenAI credential stays on the server.
+        </p>
+        <div class="flow" aria-label="Request path">
+          <span class="chip">Client</span>
+          <span class="chip">RapidAPI</span>
+          <span class="chip accent">This API</span>
+          <span class="chip">OpenAI Responses</span>
+          <span class="chip">gpt-6-astra</span>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h3>Try POST /v1/chat</h3>
+          <p class="lede">Live requests stay on this origin. Nothing here is forwarded to a browser-held OpenAI key.</p>
+          <form id="chat-form">
+            <label for="message">message</label>
+            <textarea id="message" name="message" required maxlength="16000">Explain how DNS works in two short paragraphs.</textarea>
+            <div class="row">
+              <div>
+                <label for="system">system (optional)</label>
+                <input id="system" name="system" maxlength="4000" placeholder="You are a helpful technical assistant" />
+              </div>
+              <div>
+                <label for="effort">reasoning_effort</label>
+                <select id="effort" name="reasoning_effort">
+                  <option value="low" selected>low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="xhigh">xhigh</option>
+                  <option value="max">max</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn" type="submit" id="send">Send request</button>
+              <button class="btn ghost" type="button" id="health-btn">Ping health</button>
+            </div>
+          </form>
+          <p class="note">
+            Default effort is <span class="code">low</span> to keep GPT-6 Astra spend in check.
+            Completions require <span class="code">OPENAI_API_KEY</span> on the server.
+          </p>
+        </section>
+
+        <section class="card">
+          <h3>Response</h3>
+          <p class="lede">Successful calls return only model text. Provider internals are stripped.</p>
+          <pre id="output">{
+  "success": true,
+  "model": "gpt-6-astra",
+  "response": "..."
+}</pre>
+          <div class="spec">
+            <div class="endpoint"><span class="verb">GET</span><span>/health</span></div>
+            <div class="endpoint"><span class="verb">POST</span><span>/v1/chat</span></div>
+            <div class="endpoint"><span class="verb">GET</span><span><a href="/openapi.yaml">/openapi.yaml</a></span></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top:16px">
+        <h3>Error contract</h3>
+        <p class="lede">Every failure uses the same JSON envelope. Stack traces and OpenAI internals are never returned.</p>
+        <table class="errors">
+          <thead>
+            <tr><th>HTTP</th><th>code</th><th>When</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>400</td><td class="code">VALIDATION_ERROR</td><td>Missing message or invalid reasoning_effort</td></tr>
+            <tr><td>429</td><td class="code">OPENAI_RATE_LIMIT</td><td>Upstream rate limit</td></tr>
+            <tr><td>500</td><td class="code">MISSING_API_CONFIGURATION</td><td>OPENAI_API_KEY is not set</td></tr>
+            <tr><td>500</td><td class="code">OPENAI_AUTHENTICATION_ERROR</td><td>Provider rejected the server key</td></tr>
+            <tr><td>502</td><td class="code">OPENAI_API_ERROR</td><td>Provider failure or empty completion</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer>
+        Built for RapidAPI publication. RapidAPI auth is not enabled yet — the underlying API is independently testable.
+      </footer>
+    </div>
+    <script>
+      const pill = document.getElementById("health-pill");
+      const output = document.getElementById("output");
+      const form = document.getElementById("chat-form");
+      const send = document.getElementById("send");
+
+      async function pingHealth() {
+        try {
+          const res = await fetch("/health");
+          const body = await res.json();
+          const ok = res.ok && body.status === "ok";
+          pill.className = "health " + (ok ? "ok" : "bad");
+          pill.innerHTML = '<span class="dot"></span>' + (ok ? "GET /health ok" : "GET /health failed");
+          return body;
+        } catch (error) {
+          pill.className = "health bad";
+          pill.innerHTML = '<span class="dot"></span>GET /health unreachable';
+          return { error: "unreachable" };
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        send.disabled = true;
+        output.textContent = "Sending…";
+        const payload = {
+          message: document.getElementById("message").value,
+          reasoning_effort: document.getElementById("effort").value,
+        };
+        const system = document.getElementById("system").value.trim();
+        if (system) payload.system = system;
+        try {
+          const res = await fetch("/v1/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json();
+          output.textContent = JSON.stringify(body, null, 2);
+        } catch (error) {
+          output.textContent = JSON.stringify({
+            success: false,
+            error: { code: "CLIENT_ERROR", message: "The request did not complete." },
+          }, null, 2);
+        } finally {
+          send.disabled = false;
+        }
+      });
+
+      document.getElementById("health-btn").addEventListener("click", async () => {
+        const body = await pingHealth();
+        output.textContent = JSON.stringify(body, null, 2);
+      });
+
+      pingHealth();
+    </script>
+  </body>
+</html>

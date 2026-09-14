@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+public/__grok
+artifacts
+screenshots
+.output
+.vercel
+.nitro
+package-lock.json
